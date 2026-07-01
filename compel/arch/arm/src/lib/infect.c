@@ -177,14 +177,28 @@ int arch_fetch_sas(struct parasite_ctl *ctl, struct rt_sigframe *s)
  *   arch/arm/include/asm/memory.h
  *   arch/arm/Kconfig (PAGE_OFFSET values in Memory split section)
  */
-// #define TASK_SIZE_MIN 0x3f000000
-// #define TASK_SIZE_MAX 0xbf000000
-// #define SZ_1G	      0x40000000
+#define TASK_SIZE_MIN 0x3f000000
+#define TASK_SIZE_MAX 0xbf000000
+#define SZ_1G	      0x40000000
 
-// Use unsigned constants for ARM32 task size limits to avoid potential issues with sign extension when comparing addresses.
-#define TASK_SIZE_MIN 0x3f000000UL
-#define TASK_SIZE_MAX 0xbf000000UL
-#define SZ_1G         0x40000000UL
+/*
+ * On a 64-bit (AArch64) kernel an AArch32 "compat" task is given the full
+ * 4 GiB user address space (the kernel's TASK_SIZE_32 == 0x100000000), not
+ * the smaller user/kernel split a 32-bit kernel would use. 0x100000000 is not
+ * representable in the 32-bit unsigned long used here, so the reported size is
+ * clamped to the last usable page boundary, 0xfffff000. That value sits above
+ * every mapping a compat task actually has -- [sigpage] (~0xf7xxx000), [stack]
+ * (~0xffexx000) and the high [vectors] page at 0xffff0000-0xffff1000 -- yet
+ * below the syscall error-return range (0xfffff001..0xffffffff), so the
+ * "result > task_size means error" check in remote_mmap() above stays correct.
+ *
+ * COMPAT_PROBE is unmapped but valid for a compat task on a 64-bit kernel, and
+ * invalid for every 32-bit kernel split (it is above TASK_SIZE_MAX). munmap()
+ * of an unmapped-but-valid page is a harmless no-op that succeeds, so probing
+ * it tells the two kernels apart without disturbing any real mapping.
+ */
+#define COMPAT_TASK_SIZE 0xfffff000
+#define COMPAT_PROBE	 0xe0000000
 
 unsigned long compel_task_size(void)
 {
@@ -193,6 +207,15 @@ unsigned long compel_task_size(void)
 	for (task_size = TASK_SIZE_MIN; task_size < TASK_SIZE_MAX; task_size += SZ_1G)
 		if (munmap((void *)task_size, page_size()))
 			break;
+
+	/*
+	 * A 32-bit kernel makes munmap() fail at or below TASK_SIZE_MAX, so the
+	 * loop already found the real boundary. If every probe succeeded
+	 * (task_size reached TASK_SIZE_MAX) we are a compat task on a 64-bit
+	 * kernel: confirm the high range is ours and report the clamped size.
+	 */
+	if (task_size == TASK_SIZE_MAX && !munmap((void *)COMPAT_PROBE, page_size()))
+		task_size = COMPAT_TASK_SIZE;
 
 	return task_size;
 }
