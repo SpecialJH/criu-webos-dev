@@ -781,6 +781,7 @@ static int parasite_mmap_exchange(struct parasite_ctl *ctl,
     ctl->remote_map = remote_mmap(ctl, NULL, size, remote_prot,
                                   MAP_ANONYMOUS | MAP_SHARED, -1, 0);
     if (!ctl->remote_map) {
+		pr_err("CHECK");
         pr_err("Can't allocate memory for parasite blob pid=%d size=%lu prot=0x%x\n",
                ctl->rpid, size, remote_prot);
         return -1;
