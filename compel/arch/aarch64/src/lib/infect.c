@@ -123,16 +123,42 @@ int compel_syscall(struct parasite_ctl *ctl, int nr, long *ret, unsigned long ar
 	return err;
 }
 
-void *remote_mmap(struct parasite_ctl *ctl, void *addr, size_t length, int prot, int flags, int fd, off_t offset)
+void *remote_mmap(struct parasite_ctl *ctl, void *addr, size_t length,
+                  int prot, int flags, int fd, off_t offset)
 {
-	long map;
-	int err;
+    long map = 0;
+    int err;
 
-	err = compel_syscall(ctl, __NR_mmap, &map, (unsigned long)addr, length, prot, flags, fd, offset);
-	if (err < 0 || (long)map < 0)
-		map = 0;
+    pr_info("remote_mmap: pid=%d addr=%p len=%zu prot=0x%x flags=0x%x fd=%d off=%ld\n",
+            ctl->rpid, addr, length, prot, flags, fd, (long)offset);
 
-	return (void *)map;
+    err = compel_syscall(ctl, __NR_mmap, &map,
+                         (unsigned long)addr,
+                         length,
+                         prot,
+                         flags,
+                         fd,
+                         offset);
+
+    pr_info("remote_mmap: compel_syscall ret=%d map=%lx\n",
+            err, map);
+
+    if (err < 0) {
+        pr_err("remote_mmap: compel_syscall failed pid=%d err=%d\n",
+               ctl->rpid, err);
+        return NULL;
+    }
+
+    if (map < 0) {
+        pr_err("remote_mmap: remote mmap syscall failed pid=%d map=%ld errno=%ld\n",
+               ctl->rpid, map, -map);
+        return NULL;
+    }
+
+    pr_info("remote_mmap: success pid=%d map=%lx\n",
+            ctl->rpid, map);
+
+    return (void *)map;
 }
 
 void parasite_setup_regs(unsigned long new_ip, void *stack, user_regs_struct_t *regs)

@@ -769,33 +769,58 @@ static int parasite_start_daemon(struct parasite_ctl *ctl)
 	return 0;
 }
 
-static int parasite_mmap_exchange(struct parasite_ctl *ctl, unsigned long size, int remote_prot)
+static int parasite_mmap_exchange(struct parasite_ctl *ctl,
+                                  unsigned long size,
+                                  int remote_prot)
 {
-	int fd;
+    int fd;
 
-	ctl->remote_map = remote_mmap(ctl, NULL, size, remote_prot, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
-	if (!ctl->remote_map) {
-		pr_err("Can't allocate memory for parasite blob (pid: %d)\n", ctl->rpid);
-		return -1;
-	}
+    pr_info("parasite_mmap_exchange: pid=%d size=%lu remote_prot=0x%x\n",
+            ctl->rpid, size, remote_prot);
 
-	ctl->map_length = round_up(size, page_size());
+    ctl->remote_map = remote_mmap(ctl, NULL, size, remote_prot,
+                                  MAP_ANONYMOUS | MAP_SHARED, -1, 0);
+    if (!ctl->remote_map) {
+        pr_err("Can't allocate memory for parasite blob pid=%d size=%lu prot=0x%x\n",
+               ctl->rpid, size, remote_prot);
+        return -1;
+    }
 
-	fd = ctl->ictx.open_proc(ctl->rpid, O_RDWR, "map_files/%lx-%lx", (long)ctl->remote_map,
-				 (long)ctl->remote_map + ctl->map_length);
-	if (fd < 0)
-		return -1;
+    ctl->map_length = round_up(size, page_size());
 
-	ctl->local_map = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_FILE, fd, 0);
-	close(fd);
+    pr_info("parasite_mmap_exchange: remote_map=%p map_length=%lu end=%lx\n",
+            ctl->remote_map,
+            ctl->map_length,
+            (unsigned long)ctl->remote_map + ctl->map_length);
 
-	if (ctl->local_map == MAP_FAILED) {
-		ctl->local_map = NULL;
-		pr_perror("Can't map remote parasite map");
-		return -1;
-	}
+    fd = ctl->ictx.open_proc(ctl->rpid, O_RDWR,
+                             "map_files/%lx-%lx",
+                             (long)ctl->remote_map,
+                             (long)ctl->remote_map + ctl->map_length);
+    if (fd < 0) {
+        pr_perror("Can't open /proc/%d/map_files/%lx-%lx",
+                  ctl->rpid,
+                  (long)ctl->remote_map,
+                  (long)ctl->remote_map + ctl->map_length);
+        return -1;
+    }
 
-	return 0;
+    ctl->local_map = mmap(NULL, size, PROT_READ | PROT_WRITE,
+                          MAP_SHARED | MAP_FILE, fd, 0);
+    if (ctl->local_map == MAP_FAILED) {
+        ctl->local_map = NULL;
+        pr_perror("Can't map remote parasite map pid=%d fd=%d size=%lu",
+                  ctl->rpid, fd, size);
+        close(fd);
+        return -1;
+    }
+
+    close(fd);
+
+    pr_info("parasite_mmap_exchange: local_map=%p remote_map=%p success\n",
+            ctl->local_map, ctl->remote_map);
+
+    return 0;
 }
 
 static void parasite_memfd_close(struct parasite_ctl *ctl, int fd)
