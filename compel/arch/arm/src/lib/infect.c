@@ -177,9 +177,9 @@ int arch_fetch_sas(struct parasite_ctl *ctl, struct rt_sigframe *s)
  *   arch/arm/include/asm/memory.h
  *   arch/arm/Kconfig (PAGE_OFFSET values in Memory split section)
  */
-#define TASK_SIZE_MIN 0x3f000000
-#define TASK_SIZE_MAX 0xbf000000
-#define SZ_1G	      0x40000000
+#define TASK_SIZE_MIN 0x3f000000UL
+#define TASK_SIZE_MAX 0xbf000000UL
+#define SZ_1G         0x40000000UL
 
 /*
  * On a 64-bit (AArch64) kernel an AArch32 "compat" task is given the full

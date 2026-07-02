@@ -79,7 +79,7 @@ struct prctl_mm_map {
 	u64 arg_end;
 	u64 env_start;
 	u64 env_end;
-	u64 *auxv;
+	u64 auxv;
 	u32 auxv_size;
 	u32 exe_fd;
 };

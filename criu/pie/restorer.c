@@ -1952,7 +1952,7 @@ __visible long __export_restore_task(struct task_restore_args *args)
 		.arg_end = args->mm.mm_arg_end,
 		.env_start = args->mm.mm_env_start,
 		.env_end = args->mm.mm_env_end,
-		.auxv = (void *)args->mm_saved_auxv,
+		.auxv = (u64)(unsigned long)args->mm_saved_auxv,
 		.auxv_size = args->mm_saved_auxv_size,
 		.exe_fd = args->fd_exe_link,
 	};
@@ -1972,7 +1972,7 @@ __visible long __export_restore_task(struct task_restore_args *args)
 		pr_debug("  .env_end = %" PRIx64 "\n", prctl_map.env_end);
 		pr_debug("  .auxv_size = %" PRIu32 "\n", prctl_map.auxv_size);
 		for (i = 0; i < prctl_map.auxv_size / sizeof(uint64_t); i++)
-			pr_debug("  .auxv[%d] = %" PRIx64 "\n", i, prctl_map.auxv[i]);
+			pr_debug("  .auxv[%d] = %" PRIx64 "\n", i, ((u64 *)(unsigned long)prctl_map.auxv)[i]);
 		pr_debug("  .exe_fd = %" PRIu32 "\n", prctl_map.exe_fd);
 	}
 	if (ret == -EINVAL || ret == -EFAULT) {
