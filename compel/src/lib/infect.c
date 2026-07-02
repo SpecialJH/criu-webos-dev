@@ -775,7 +775,7 @@ static int parasite_mmap_exchange(struct parasite_ctl *ctl,
 {
     int fd;
 
-    pr_info("parasite_mmap_exchange: pid=%d size=%lu remote_prot=0x%x\n",
+    pr_err("parasite_mmap_exchange: pid=%d size=%lu remote_prot=0x%x\n",
             ctl->rpid, size, remote_prot);
 
     ctl->remote_map = remote_mmap(ctl, NULL, size, remote_prot,
